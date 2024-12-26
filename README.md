@@ -2,7 +2,7 @@
 
 ![logo](./logo.svg)
 
-A little and useful BASH script that moves and compresses files to an "archive" directory, allowing you to restore them later to their original location.
+A useful BASH script that compresses and moves files to an "archive" directory, allowing you to restore them later to their original location.
 
 ```txt
 Usage: arc [options] [files]
