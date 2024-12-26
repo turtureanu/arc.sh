@@ -199,7 +199,17 @@ undo() {
         if [ -e "$file" ]; then
             # --absolute-names: clever little trick to use path stored inside the archive
             tar --absolute-names -xzf "$file"
-            rm "$file"
+            rm "$file" # remove archive
+            parent_dir=$(dirname "$file")
+
+            # remove parent directories
+            while [ "$parent_dir" != "." ] && [ "$parent_dir" != "/" ] && [ "$parent_dir" != "$archive_dir" ]; do
+                if ! rmdir "$parent_dir" 2>/dev/null; then
+                    msg "Failed to remove directory: $parent_dir"
+                    break
+                fi
+                parent_dir=$(dirname "$parent_dir")
+            done
         else
             die "archived file not found!" 6
         fi
