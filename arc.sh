@@ -20,7 +20,10 @@ Available options:
     --install-path       Specify the install path  [default: /usr/local/bin]
     --uninstall          Uninstall the script
     
-To undo a file, provide either the file name or the full archive path (to avoid collisions)
+To undo a file, provide either the file name or the full original path (to avoid collisions)
+Examples:
+    arc -u ".vsco*" # this will expand the glob pattern
+    arc -u "/home/tux/projects/knowleaks/node_modules"
 
 EOF
     exit 0
@@ -46,6 +49,7 @@ install_path="/usr/local/bin"
 is_undo=0
 
 parse_options() {
+    local action # used to have set install_path before install or uninstall
     while :; do
         case "${1-}" in
         -h | --help)
@@ -53,34 +57,47 @@ parse_options() {
             ;;
         --install-path)
             install_path="${2-}"
-            shift
+            shift 2
+            continue
             ;;
         -i | --install)
-            install
+            action="install"
+            shift
             ;;
         --uninstall)
-            uninstall
+            action="uninstall"
+            shift
             ;;
         -u | --undo)
             is_undo=1
+            shift
             ;;
         -a | --archive-dir)
             if [ -d "${2-}" ]; then
                 archive_dir="${2-}"
                 archive_dir="$(realpath "${archive_dir%/}")"
-                shift
+                shift 2
             else
                 die "Invalid archive directory" 4
             fi
             ;;
         -l | --list)
             list
+            shift
             ;;
         -?*) die "Unknown option: $1" ;;
         *) break ;;
         esac
-        shift
     done
+
+    case "$action" in
+    "install")
+        install
+        ;;
+    "uninstall")
+        uninstall
+        ;;
+    esac
 
     files=("$@")
 
@@ -93,14 +110,15 @@ parse_options() {
                 files_path+=("$(realpath "$(find "$archive_dir" -name "$file.*")")")
             else
                 # if it is not the name, then it must be the path
-                if [ ! -e "$archive_dir$file" ]; then
+                if [ -e "$archive_dir$file" ]; then
                     die "Invalid file given" 3 # if it doesn't even exist, exit
                 fi
                 files_path+=("$(realpath "$archive_dir$file")")
             fi
         else
             # we're not in undo mode, check if the path is valid
-            if [ ! -e "$file" ]; then
+            # shellcheck disable=SC2086
+            if [ ! -e $file ]; then
                 die "Invalid file given" 3
             fi
 
@@ -108,8 +126,8 @@ parse_options() {
             if [[ "$(realpath "$file")" == "$archive_dir/"* ]]; then
                 die "You cannot archive something inside the archive itself!" 5
             fi
-
-            files_path+=("$(realpath "$file")")
+            # shellcheck disable=SC2086
+            files_path+=("$(realpath $file)")
         fi
     done
 
@@ -136,13 +154,12 @@ install() {
 }
 
 uninstall() {
-    if [ -f "$install_path/arc" ]; then
+    if [ -e "$install_path/arc" ]; then
         sudo rm "$install_path/arc" && die "arc.sh was successfully uninstalled" 0
     else
         if hash arc; then
             location="$(which arc)"
-            sudo rm "$(which arc)"
-            die "Removed arc.sh from $location" 0
+            sudo rm "$(which arc)" && die "Removed arc.sh from $location" 0
         else
             die "Couldn't find arc.sh in $install_path or PATH" 1
         fi
@@ -152,6 +169,10 @@ uninstall() {
 list() {
     printf "size%-1s  date added%-10s  file name%-11s  original path\n\n" "" "" ""
     max_length=20 # max file name length
+
+    if [ ! -d "$archive_dir" ]; then
+        mkdir "$archive_dir"
+    fi
 
     find "$archive_dir/" -name "*.tar.gz" -exec bash -c '
         for file; do
@@ -172,9 +193,13 @@ list() {
 undo() {
     for file in "${files_path[@]}"; do
         echo "$file"
-        cd "$(dirname "$file")"
-        # --absolute-names: clever little trick to use path stored inside the archive
-        tar --absolute-names -xzf "$file"
+        if [ -e "$file" ]; then
+            # --absolute-names: clever little trick to use path stored inside the archive
+            tar --absolute-names -xzf "$file"
+            rm "$file"
+        else
+            die "archived file not found!" 6
+        fi
     done
     exit 0
 }
@@ -192,10 +217,11 @@ archive() {
         fi
 
         eval "$compression 1> /dev/null"
-        rm "$file"
+        rm -r "$file"
         local FILE_PATH
         FILE_PATH="$archive_dir$(dirname "$file")"
-        mkdir -p "$FILE_PATH" && mv "${file}.tar.gz" "$FILE_PATH"
+        # shellcheck disable=SC2086
+        mkdir -p "$FILE_PATH" && mv ${file}.* "$FILE_PATH"
     done
 
     return 0
@@ -204,7 +230,6 @@ archive() {
 parse_options "$@"
 
 if [ $is_undo -eq 0 ]; then
-    echo "hello"
     archive
 else
     undo
