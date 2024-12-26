@@ -108,15 +108,19 @@ parse_options() {
         # are we in undo mode
         if [ $is_undo -eq 1 ]; then
             # is only the name provided?
-            if [ "$(find "$archive_dir" -name "$file.*" 2>/dev/null | wc -l)" -eq 1 ]; then
-                # expand the name to the absolute path and add it to the files_path list
-                files_path+=("$(realpath "$(find "$archive_dir" -name "$file.*")")")
+            if [ "$(find "$archive_dir" -name "$file*" 2>/dev/null | wc -l)" -ge 1 ]; then
+                # expand the name (glob) to the absolute path and add it to the files_path list
+                while IFS= read -r file; do
+                    files_path+=("$file")
+                done < <(find "$archive_dir" -name "$file*" 2>/dev/null)
+
             else
                 # if it is not the name, then it must be the path
                 if [ -e "$archive_dir$file" ]; then
                     die "Invalid file given" 3 # if it doesn't even exist, exit
                 fi
-                files_path+=("$(realpath "$archive_dir$file")")
+                # shellcheck disable=2086
+                files_path+=("$(realpath ${archive_dir}${file}*)")
             fi
         else
             # we're not in undo mode, check if the path is valid
@@ -195,24 +199,20 @@ list() {
 
 undo() {
     for file in "${files_path[@]}"; do
-        if [ -e "$file" ]; then
-            # --absolute-names: clever little trick to use path stored inside the archive
-            # the relative path structure (e.g. /home/tux/projects is stored as /home/tux/archive/home/tux/projects)
-            # inside the archive dir is used for manual recovery only
-            tar --absolute-names -xzf "$file"
-            rm "$file" # remove archive
-            parent_dir=$(dirname "$file")
+        # --absolute-names: clever little trick to use path stored inside the archive
+        # the relative path structure (e.g. /home/tux/projects is stored as /home/tux/archive/home/tux/projects)
+        # inside the archive dir is used for manual recovery only
+        tar --absolute-names -xzf "$file"
+        rm "$file" # remove archive
+        parent_dir=$(dirname "$file")
 
-            # remove parent directories
-            while [ "$parent_dir" != "." ] && [ "$parent_dir" != "/" ] && [ "$parent_dir" != "$archive_dir" ]; do
-                if ! rmdir "$parent_dir" 2>/dev/null; then
-                    break
-                fi
-                parent_dir=$(dirname "$parent_dir")
-            done
-        else
-            die "archived file not found!" 6
-        fi
+        # remove parent directories
+        while [ "$parent_dir" != "." ] && [ "$parent_dir" != "/" ] && [ "$parent_dir" != "$archive_dir" ]; do
+            if ! rmdir "$parent_dir" 2>/dev/null; then
+                break
+            fi
+            parent_dir=$(dirname "$parent_dir")
+        done
     done
     exit 0
 }
