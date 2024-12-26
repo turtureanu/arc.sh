@@ -198,6 +198,8 @@ undo() {
         echo "$file"
         if [ -e "$file" ]; then
             # --absolute-names: clever little trick to use path stored inside the archive
+            # the relative path structure (e.g. /home/tux/projects is stored as /home/tux/archive/home/tux/projects)
+            # inside the archive dir is used for manual recovery only
             tar --absolute-names -xzf "$file"
             rm "$file" # remove archive
             parent_dir=$(dirname "$file")
