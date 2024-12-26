@@ -1,7 +1,5 @@
 # arc.sh
 
-![logo](./logo.svg)
-
 A useful BASH script that compresses and moves files to an "archive" directory, allowing you to restore them later to their original location.
 
 ```txt
@@ -25,5 +23,7 @@ Examples:
     arc -u ".vsco*" # this will expand the glob pattern
     arc -u "/home/tux/projects/knowleaks/node_modules"
 ```
+
+![logo](./logo.svg)
 
 Made for [High Seas](https://highseas.hackclub.com/)
