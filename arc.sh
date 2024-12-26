@@ -137,7 +137,7 @@ install() {
 
 uninstall() {
     if [ -f "$install_path/arc" ]; then
-        sudo rm "$install_path/arc"
+        sudo rm "$install_path/arc" && die "arc.sh was successfully uninstalled" 0
     else
         if hash arc; then
             location="$(which arc)"
