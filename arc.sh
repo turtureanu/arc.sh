@@ -44,7 +44,7 @@ files=()      # use for getting file names or relative paths
 files_path=() # use for anything else, because it provides the full path
 
 archive_dir=$(realpath ~/archive)
-compression="" # take a file and output
+compression=""
 install_path="/usr/local/bin"
 is_undo=0
 
@@ -195,7 +195,6 @@ list() {
 
 undo() {
     for file in "${files_path[@]}"; do
-        echo "$file"
         if [ -e "$file" ]; then
             # --absolute-names: clever little trick to use path stored inside the archive
             # the relative path structure (e.g. /home/tux/projects is stored as /home/tux/archive/home/tux/projects)
@@ -207,7 +206,6 @@ undo() {
             # remove parent directories
             while [ "$parent_dir" != "." ] && [ "$parent_dir" != "/" ] && [ "$parent_dir" != "$archive_dir" ]; do
                 if ! rmdir "$parent_dir" 2>/dev/null; then
-                    msg "Failed to remove directory: $parent_dir"
                     break
                 fi
                 parent_dir=$(dirname "$parent_dir")
@@ -221,14 +219,11 @@ undo() {
 
 archive() {
     for file in "${files_path[@]}"; do
-        # check if the user supplied the compression command
-        if [ -z "$compression" ]; then
-            # if they didn't, try using pigz
-            if hash pigz 2>/dev/null; then
-                compression="tar --absolute-names --use-compress-program='pigz -N -M --best' -cvf '${file}.tar.gz' '${file}'"
-            else # fallback to gzip
-                compression="tar --absolute-names -cvzf '${file}.tar.gz' '${file}'"
-            fi
+        # if they didn't, try using pigz
+        if hash pigz 2>/dev/null; then
+            compression="tar --absolute-names --use-compress-program='pigz -N -M --best' -cvf '${file}.tar.gz' '${file}'"
+        else # fallback to gzip
+            compression="tar --absolute-names -cvzf '${file}.tar.gz' '${file}'"
         fi
 
         eval "$compression 1> /dev/null"
