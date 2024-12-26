@@ -49,7 +49,7 @@ install_path="/usr/local/bin"
 is_undo=0
 
 parse_options() {
-    local action # used to have set install_path before install or uninstall
+    local action="" # used to have set install_path before install or uninstall
     while :; do
         case "${1-}" in
         -h | --help)
@@ -90,14 +90,17 @@ parse_options() {
         esac
     done
 
-    case "$action" in
-    "install")
-        install
-        ;;
-    "uninstall")
-        uninstall
-        ;;
-    esac
+    # if action is undefined
+    if [[ -n "$action" ]]; then
+        case "$action" in
+        "install")
+            install
+            ;;
+        "uninstall")
+            uninstall
+            ;;
+        esac
+    fi
 
     files=("$@")
 
